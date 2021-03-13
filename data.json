@@ -1,0 +1,17 @@
+[
+    {
+        "title": "Was this a good question?",
+        "aswers": [
+            "No",
+            "Not really",
+            "Yes",
+            "Not really yes"
+        ],
+        "facts": [
+            "Did you know? According to me, this is a good question.",
+            "Come on!",
+            "Thank you",
+            "What does this even mean?"
+        ]
+    }
+]
