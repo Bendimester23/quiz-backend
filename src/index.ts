@@ -17,7 +17,7 @@ const app = express()
 const server: HTTPServer = createServer(app)
 const io: SocketIOServer = new SocketIOServer(server, {
   cors: {
-    origin: `http://192.168.0.15:8080`,
+    origin: `http://192.168.8.100:8080`,
     allowedHeaders: `*`,
     credentials: true
   },
@@ -26,7 +26,8 @@ const io: SocketIOServer = new SocketIOServer(server, {
 
 let state = {
   isStarted: false,
-  isReady: false
+  isReady: false,
+  isEnded: false
 }
 
 let tick;
@@ -40,6 +41,7 @@ io.on(`connect`, (socket: Socket) => {
     isReady: false,
     id: socket.id
   }
+  socket.emit(`changestate`, state)
   console.log(`Socket connected.\nID: ${socket.id}`)
   socket.on(`checkstate`, (data) => {
     if (kicked.includes(socket.id)) {
@@ -92,13 +94,27 @@ io.on(`connect`, (socket: Socket) => {
   })
 
   socket.on(`setquizstate`, (data) => {
+    if (!dash.includes(socket.id)) {
+      dash.push(socket.id)
+    }
     state = data
-    Object.keys(sockets).forEach((s) => {
-      io.to(s).emit(`changestate`, state)
-    })
+    if (!state.isReady && state.isStarted) {
+      let left = 0
+      Object.values(sockets).forEach((e: any) => {
+        if (e != undefined && !e.isReady && !dash.includes(e.id)) left++
+      })
+      io.emit(`waiting`, {
+        notReadyPlayers: left
+      })
+    } else if (!state.isReady && !state.isStarted) {
+      io.emit(`waiting`, {
+        notReadyPlayers: 0
+      })
+    }
+    io.emit(`changestate`, state)
   })
 
-  socket.on(`dash`, (data) => {
+  socket.on(`dash`, () => {
     dash.push(socket.id)
   })
 
@@ -140,7 +156,8 @@ function startQuiz() {
   console.log(`Starting quiz with ${io.sockets.sockets.size} users`)
   state = {
     isStarted: true,
-    isReady: true
+    isReady: true,
+    isEnded: false
   }
   io.emit(`changestate`, state)
   io.emit(`setcooldown`, true)
@@ -152,13 +169,33 @@ function startQuiz() {
           cooldown--
           io.emit(`update-countdown`, cooldown)
         } else {
-          io.emit(`annuance`, 1)
-          setTimeout(() => qState++, 900)
+          io.emit(`annuance`, currentQuestion + 1)
+          qState++
         }
         break
       case 1:
+        io.emit(`setCurrState`, 1)
         cooldown = 10
         io.emit(`updatequestion`, quizdata[currentQuestion])
+        qState++
+        break
+      case 2:
+        if (cooldown >= 1) {
+          cooldown--
+          io.emit(`update-countdown`, cooldown)
+        } else {
+          currentQuestion++
+          console.log(`Curr: ${currentQuestion} max: ${quizdata.length}`)
+          if (currentQuestion >= quizdata.length) {
+            qState++
+          } else {
+            qState = 0
+          }
+        }
+        break
+      case 3:
+        state.isEnded = true
+        io.emit(`setCurrState`, 2)
     }
   }, 1000)
 }
