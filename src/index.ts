@@ -17,7 +17,7 @@ const app = express()
 const server: HTTPServer = createServer(app)
 const io: SocketIOServer = new SocketIOServer(server, {
   cors: {
-    origin: `http://192.168.8.100:8080`,
+    origin: `http://quiz.bendimester23.tk`,
     allowedHeaders: `*`,
     credentials: true
   },
